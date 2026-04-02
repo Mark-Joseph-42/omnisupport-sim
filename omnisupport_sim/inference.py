@@ -13,7 +13,7 @@ from openai import OpenAI
 # ── Configuration ──
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:1234/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "qwen3.5-4b-python-coder")
-ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
+ENV_URL = os.getenv("ENV_URL", "https://markjoseph2003-metahacky.hf.space")
 TIMEOUT_MINUTES = 19  # Must complete under 20 min
 
 client = OpenAI(base_url=API_BASE_URL, api_key=os.getenv("LM_API_KEY", "lm-studio"))

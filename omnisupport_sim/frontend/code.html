@@ -158,15 +158,8 @@
 </div>
 <span class="text-[10px] font-mono text-on-surface-variant/60 uppercase">env://sim-engine-09</span>
 </div>
-<div class="flex-grow p-4 font-mono text-sm overflow-y-auto space-y-2 bg-[#0a0a0f]/80 custom-scrollbar">
-<p class="text-tertiary leading-relaxed"><span class="opacity-40 mr-2">[09:41:02]</span>[START] Initializing Tier-2 Agent: support-model-turbo-v4...</p>
-<p class="text-primary leading-relaxed"><span class="opacity-40 mr-2">[09:41:05]</span>[STEP] Scanning available tools: CRM_API, REFUND_ENGINE, KNOWLEDGE_BASE_V3</p>
-<p class="text-on-surface-variant leading-relaxed"><span class="opacity-40 mr-2">[09:41:06]</span>Observation: Environment ready. Received ticket #44092: "Damaged item received, requesting urgent refund."</p>
-<p class="text-primary leading-relaxed"><span class="opacity-40 mr-2">[09:41:08]</span>[STEP] Calling CRM_API.get_customer_history(user_id="cust_882")</p>
-<p class="text-tertiary leading-relaxed"><span class="opacity-40 mr-2">[09:41:09]</span>[START] Reasoning chain: User is a 'Loyalty-Gold' member. Automated refund path eligible.</p>
-<p class="text-error leading-relaxed"><span class="opacity-40 mr-2">[09:41:12]</span>[ERROR] Refund requested exceeds threshold ($200.00). Escalation protocol required.</p>
-<p class="text-primary leading-relaxed"><span class="opacity-40 mr-2">[09:41:15]</span>[STEP] Executing action: SOP_COMPLIANCE_CHECK(protocol="high_value_refund")</p>
-<p class="text-on-surface-variant leading-relaxed animate-pulse"><span class="opacity-40 mr-2">[09:41:18]</span>Thinking...</p>
+<div id="agent-logs" class="flex-grow p-4 font-mono text-sm overflow-y-auto space-y-2 bg-[#0a0a0f]/80 custom-scrollbar">
+    <!-- Logs will be populated here by JavaScript -->
 </div>
 </div>
 </section>
@@ -229,7 +222,7 @@
 </defs>
 </svg>
 <div class="absolute flex flex-col items-center">
-<span class="text-4xl font-mono font-bold glow-cyan">0.80</span>
+<span id="agent-score" class="text-4xl font-mono font-bold glow-cyan">0.00</span>
 <span class="text-[10px] font-mono text-tertiary">RANK: SUPERIOR</span>
 </div>
 </div>
@@ -270,7 +263,7 @@
 </div>
 <div class="pt-4 border-t border-outline-variant/15 flex justify-between items-center">
 <span class="text-xs font-bold">Total Reward Accumulation</span>
-<span class="text-xl font-mono font-bold text-tertiary">+1.3</span>
+<span id="reward-accum" class="text-xl font-mono font-bold text-tertiary">+0.0</span>
 </div>
 </div>
 </div>
@@ -297,7 +290,7 @@
 </div>
 <!-- Quick Actions -->
 <div class="grid grid-cols-3 gap-3">
-<button class="flex flex-col items-center justify-center gap-2 p-4 glass-panel rounded-xl glass-stroke hover:bg-tertiary/10 transition-all group">
+<button id="btn-reset" class="flex flex-col items-center justify-center gap-2 p-4 glass-panel rounded-xl glass-stroke hover:bg-tertiary/10 transition-all group">
 <span class="material-symbols-outlined text-tertiary group-hover:scale-110 transition-transform" data-icon="restart_alt">restart_alt</span>
 <span class="text-[9px] font-bold uppercase tracking-tighter">Reset Env</span>
 </button>
@@ -404,4 +397,77 @@
 </div>
 <div class="text-[10px] text-slate-700 tracking-widest mt-4">© 2024 KINETIC OBSERVER OS. MISSION CRITICAL INTELLIGENCE.</div>
 </footer>
+
+<script>
+    const agentLogs = document.getElementById('agent-logs');
+    const agentScore = document.getElementById('agent-score');
+    const rewardAccum = document.getElementById('reward-accum');
+    const btnReset = document.getElementById('btn-reset');
+
+    let previousStepCount = -1;
+
+    // Fetch environment state periodically
+    async function fetchState() {
+        try {
+            const resp = await fetch('/state');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            
+            if (data.error) return; // Not started
+
+            // Check if step count advanced to avoid redundant re-renders
+            if (data.step_count > previousStepCount) {
+                renderLogs(data.actions_taken);
+                previousStepCount = data.step_count;
+            }
+
+            // Update scores
+            rewardAccum.innerHTML = (data.reward_accumulated > 0 ? "+" : "") + data.reward_accumulated.toFixed(1);
+            if (data.done) {
+                // Approximate terminal score rendering
+                agentScore.innerHTML = (data.reward_accumulated).toFixed(2);
+            }
+        } catch (err) {
+            console.error("Error fetching state:", err);
+        }
+    }
+
+    function renderLogs(actions) {
+        agentLogs.innerHTML = "";
+        if (actions.length === 0) {
+            agentLogs.innerHTML = `<p class="text-on-surface-variant leading-relaxed animate-pulse"><span class="opacity-40 mr-2">[SYS]</span>Waiting for agent...</p>`;
+            return;
+        }
+
+        actions.forEach((action, i) => {
+            let color = "text-primary";
+            if (action.action_type === "final_response") color = "text-tertiary";
+            else if (action.action_type === "execute_action") color = "text-error";
+
+            let actionStr = JSON.stringify(action);
+            agentLogs.innerHTML += `<p class="${color} leading-relaxed"><span class="opacity-40 mr-2">[STEP ${i+1}]</span>${actionStr}</p>`;
+        });
+    }
+
+    // Handle manual reset from the UI button
+    btnReset.addEventListener('click', async () => {
+        agentLogs.innerHTML = `<p class="text-tertiary leading-relaxed"><span class="opacity-40 mr-2">[SYS]</span>Resetting environment...</p>`;
+        previousStepCount = -1;
+        try {
+            await fetch('/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ task_id: "order_check" })
+            });
+            setTimeout(fetchState, 500); // Trigger a refresh
+        } catch (err) {
+            console.error("Error resetting:", err);
+        }
+    });
+
+    // Start polling every 1.5 seconds
+    setInterval(fetchState, 1500);
+    fetchState();
+</script>
+
 </body></html>
