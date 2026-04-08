@@ -179,6 +179,7 @@ GRADERS = {
     "order_check": grade_task_1,
     "refund_logic": grade_task_2,
     "fraud_mitigation": grade_task_3,
+    "random": grade_task_3,
 }
 
 def grade(state: dict, task_id: str) -> float:

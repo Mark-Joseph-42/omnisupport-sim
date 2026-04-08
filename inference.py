@@ -67,9 +67,6 @@ SYSTEM_PROMPT = textwrap.dedent(
     STRICT SOP:
     1. Search Order ID.
     2. If a tracking_id is found, you MUST search that tracking_id to check Carrier status.
-    STRICT SOP:
-    1. Search Order ID.
-    2. If a tracking_id is found, you MUST search that tracking_id to check Carrier status.
     3. MANDATORY: You MUST use 'verify_policy' for every ticket before taking any action. For Task 3 (Conflict), use 'return_verification'.
     4. Provide a CONCISE and professional FinalResponse when done.
     
