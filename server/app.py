@@ -77,15 +77,8 @@ async def health():
 
 @app.get("/")
 async def root():
-    """Redirect root to the web interface."""
-    return RedirectResponse(url="/web")
-
-# ── Serve frontend if available ──
-frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "omnisupport_sim", "frontend")
-if os.path.exists(frontend_path):
-    @app.get("/web")
-    async def web_interface():
-        return FileResponse(os.path.join(frontend_path, "code.html"))
+    """Redirect root to interactive API docs."""
+    return RedirectResponse(url="/docs")
 
 def main():
     import uvicorn
