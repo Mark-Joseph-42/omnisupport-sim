@@ -82,6 +82,36 @@ _INITIAL_ORDER_DB = [
         "tier": "LOYALTY-GOLD",
         "notes": "Old order. Should NOT be confused with recent order."
     },
+    # ── RED HERRING: Expensive item (>$500, ineligible for auto-refund) ──
+    {
+        "order_id": 5402,
+        "customer_id": "cust_882",
+        "customer_name": "Alex Rivera",
+        "item": "Ultrawide Monitor",
+        "value": 899.00,
+        "purchase_date": "2026-03-31",
+        "status": "Delivered",
+        "tracking_id": "TRK-0021-MM",
+        "carrier_status": "Delivered",
+        "refund_status": None,
+        "tier": "LOYALTY-GOLD",
+        "notes": "High value item. Policy requires manual audit."
+    },
+    # ── RED HERRING: Recently delivered, no issue ──
+    {
+        "order_id": 5510,
+        "customer_id": "cust_882",
+        "customer_name": "Alex Rivera",
+        "item": "Webcam Pro",
+        "value": 45.00,
+        "purchase_date": "2026-04-01",
+        "status": "Delivered",
+        "tracking_id": "TRK-4412-PP",
+        "carrier_status": "Delivered",
+        "refund_status": None,
+        "tier": "LOYALTY-GOLD",
+        "notes": "Order complete."
+    },
     # ── RED HERRING: Expensive item (>$500, ineligible) ──
     {
         "order_id": 5300,

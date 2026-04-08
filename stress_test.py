@@ -73,6 +73,7 @@ if __name__ == "__main__":
     # PERSONA 5: The Perfect Agent (Task 3: Conflict Reconciliation)
     # Goal: Check Carrier API for tracking TRK-9928-XZ before refunding
     run_test_case("Perfect Agent", "fraud_mitigation", [
+        {"action_type": "verify_policy", "topic": "return_verification"},
         {"action_type": "search_db", "query": "TRK-9928-XZ"}, # This triggers carrier_api in the code
         {"action_type": "execute_action", "cmd": "issue_refund", "params": {"order_id": 4829}},
         {"action_type": "final_response", "text": "Carrier confirmed delivery, refunding now."}

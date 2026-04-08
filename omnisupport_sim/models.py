@@ -39,8 +39,14 @@ class FinalResponse(BaseModel):
     action_type: Literal["final_response"] = "final_response"
     text: str = Field(description="Final response text sent to the customer")
 
-# Discriminated union
-OmniSupportAction = Union[SearchDB, VerifyPolicy, ExecuteAction, FinalResponse]
+# Discriminated union for Action models
+OmniSupportAction = Union[
+    SearchDB,
+    VerifyPolicy,
+    ExecuteAction,
+    FinalResponse
+]
+# Note: In Pydantic V2, use Annotated[Union[...], Field(discriminator='action_type')] for explicit discrimination.
 
 
 # ── State Model (for grading and debugging) ────────────────────────────────

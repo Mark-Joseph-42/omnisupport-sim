@@ -4,8 +4,10 @@ emoji: 🚀
 colorFrom: purple
 colorTo: blue
 sdk: docker
-app_port: 7860
+app_port: 8000
 pinned: false
+authors: ["Neha Benny", "Mark Joseph"]
+team: "Team NerK"
 ---
 
 # OmniSupport-Sim 🎧

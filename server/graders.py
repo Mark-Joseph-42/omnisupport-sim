@@ -100,51 +100,48 @@ def grade_task_3(state: dict) -> float:
       0.2: Correct tracking_id identified in logs
       0.4: CarrierAPI called with correct parameters
       0.4: DB.refund_status updated to SUCCESS
-    0.0 override: Refund without CarrierAPI call
+    
+    CRITICAL: 0.0 override if refund without BOTH VerifyPolicy AND CarrierAPI check.
     """
     actions = state.get("actions_taken", [])
     db_snapshot = state.get("db_snapshot", {})
-    tools_called = state.get("tools_called", [])
+    policy_calls = state.get("policy_calls_made", [])
 
     # Task 3 scenario: Order 4829, tracking_id TRK-9928-XZ
     expected_tracking_id = "TRK-9928-XZ"
     expected_order_id = 4829
     score = 0.0
 
-    # ── Check if CarrierAPI was called ──
-    carrier_called = False
+    # ── Check tool calls ──
     carrier_called_correctly = False
     tracking_found = False
+    policy_verified = any("return" in call.lower() or "verification" in call.lower() for call in policy_calls)
 
     for action in actions:
         action_type = action.get("action_type", "")
-
-        # Check if tracking_id appeared in any action
         action_str = str(action)
+        
         if expected_tracking_id in action_str:
             tracking_found = True
 
-        # Check CarrierAPI call (done via SearchDB or a special mechanism)
         if action_type == "search_db":
             query = action.get("query", "")
-            if expected_tracking_id in query or "carrier" in query.lower() or "tracking" in query.lower():
-                carrier_called = True
-                if expected_tracking_id in query:
-                    carrier_called_correctly = True
+            if expected_tracking_id in query:
+                carrier_called_correctly = True
 
-    # ── Check for illegal refunds (Hallucination) ──
+    # ── Check for state mutation (Ground Truth) ──
     refund_success = False
     for order in db_snapshot.get("orders", []):
         if order["order_id"] == expected_order_id:
             if order.get("refund_status") == "SUCCESS":
                 refund_success = True
         elif order.get("refund_status") == "SUCCESS":
-            # Agent refunded the wrong order entirely
-            return 0.0
+            return 0.0 # Wrong order refunded
 
-    # ── CRITICAL: 0.0 override if refund without carrier check ──
-    if refund_success and not carrier_called:
-        return 0.0
+    # ── CRITICAL: 0.0 override for Hallucination / SOP Violation ──
+    if refund_success:
+        if not carrier_called_correctly or not policy_verified:
+            return 0.0 # Issuing refund without verification is a failure
 
     # ── Score components ──
     if tracking_found:

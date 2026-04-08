@@ -4,7 +4,9 @@ Bounded between [-2.0, 1.0] per step.
 
 Components:
   R_prog: +0.1 per novel, relevant KV pair extracted from tools
-  R_pen:  -0.5 per SOP violation
+  R_pen:  -0.5 per SOP violation (must VerifyPolicy before ExecuteAction)
+  R_step: -0.02 per step (incentivizes efficiency)
+  R_dest: -2.0 for destructive actions (e.g. deleting records - simulation limit)
   R_term: +1.0 if programmatic grader validates final state
 """
 
@@ -23,65 +25,60 @@ class RewardCalculator:
         self.sop_violations: int = 0
         self.total_reward: float = 0.0
 
-    def compute_step_reward(self, action_type: str, tool_output: dict | None) -> float:
+    def compute_step_reward(self, action: dict, tool_output: dict | None) -> float:
         """Compute reward for a single step.
-
-        Args:
-            action_type: One of 'search_db', 'verify_policy', 'execute_action', 'final_response'
-            tool_output: The output dictionary from the tool call
 
         Returns:
             Step reward clipped to [-2.0, 1.0]
         """
-        reward = 0.0
+        reward = -0.02  # ── R_step: Step penalty ──
+        action_type = action.get("action_type")
 
         # ── R_prog: +0.1 per novel KV pair ──
         if tool_output and isinstance(tool_output, dict):
-            for key, value in self._flatten_dict(tool_output).items():
-                kv_hash = f"{key}:{value}"
-                if kv_hash not in self.seen_kv_pairs:
-                    self.seen_kv_pairs.add(kv_hash)
-                    reward += 0.1
+            # Exclude error outputs from progress reward
+            if "error" not in tool_output:
+                for key, value in self._flatten_dict(tool_output).items():
+                    kv_hash = f"{key}:{value}"
+                    if kv_hash not in self.seen_kv_pairs:
+                        self.seen_kv_pairs.add(kv_hash)
+                        reward += 0.1
 
         # ── Track tool calls for SOP ──
         if action_type == "verify_policy":
             self.policy_verified = True
-        elif action_type == "search_db" and tool_output:
-            # Check if carrier query was done via search result containing tracking info
-            pass
-
-        # ── R_pen: -1.0 for SOP violations ──
+        
+        # ── R_pen: -0.5 for SOP violations ──
         if action_type == "execute_action":
             if not self.policy_verified:
-                reward -= 1.0
+                reward -= 0.5
                 self.sop_violations += 1
+            
+            # ── R_dest: -2.0 for destructive action simulation ──
+            cmd = action.get("cmd", "")
+            if cmd in ["delete_user", "clear_database", "wipe_records"]:
+                reward -= 2.0
 
         # Clip to bounds
         reward = max(-2.0, min(1.0, reward))
         self.total_reward += reward
         return reward
 
+    def compute_destructive_penalty(self) -> float:
+        """Apply a heavy penalty for destructive actions."""
+        penalty = -2.0
+        self.total_reward += penalty
+        return penalty
+
     def compute_terminal_reward(self, grader_score: float) -> float:
-        """Compute terminal reward based on grader output.
-
-        Args:
-            grader_score: Score from the task grader [0.0, 1.0]
-
-        Returns:
-            Terminal reward logic: 
-            - 1.0 if grader validates (Success)
-            - 0.0 grader score results in a total episode reward wipeout
-        """
+        """Compute terminal reward based on grader output."""
         if grader_score == 0.0:
             # HALLUCINATION / CRITICAL FAILURE: Wipe out all partial progress rewards
             penalty = -self.total_reward
             self.total_reward = 0.0
             return penalty
             
-        if grader_score >= 1.0:
-            r_term = 1.0
-        else:
-            r_term = grader_score  # Proportional partial credit
+        r_term = grader_score # 1.0 for full success, partial for Task 3
         self.total_reward += r_term
         return r_term
 
@@ -100,4 +97,4 @@ class RewardCalculator:
                         items[f"{new_key}[{i}]"] = str(item)
             else:
                 items[new_key] = str(v)
-        return items
+        return items

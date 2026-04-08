@@ -12,6 +12,9 @@ runtime:
   resources:
     cpu: 2
     memory: 8GB
+contributors:
+  - Neha Benny
+  - Mark Joseph (Team NerK)
 app:
   module: server.app
   variable: app

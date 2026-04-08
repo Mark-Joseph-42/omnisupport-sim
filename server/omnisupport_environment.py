@@ -171,7 +171,7 @@ class OmniSupportEnvironment:
 
         # ── Compute reward ──
         step_reward = self.reward_calc.compute_step_reward(
-            action_type,
+            action,
             tool_output if isinstance(tool_output, dict) else {"results": tool_output}
         )
 
