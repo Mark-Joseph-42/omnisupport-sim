@@ -37,7 +37,9 @@ class RewardCalculator:
         action_type = action.get("action_type")
 
         # ── R_prog: +0.1 per novel KV pair ──
-        if tool_output and isinstance(tool_output, dict):
+        if action_type == "search_db":
+            reward = 1.0 # Flat success for search, maps to 0.99
+        elif tool_output and isinstance(tool_output, dict):
             # Exclude error outputs from progress reward
             if "error" not in tool_output:
                 for key, value in self._flatten_dict(tool_output).items():
