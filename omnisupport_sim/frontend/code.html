@@ -213,7 +213,7 @@ Run Evaluation
 <div class="relative w-40 h-40 flex items-center justify-center">
 <svg class="w-full h-full transform -rotate-90">
 <circle class="text-surface-container-highest" cx="80" cy="80" fill="transparent" r="70" stroke="currentColor" stroke-width="8"></circle>
-<circle cx="80" cy="80" fill="transparent" r="70" stroke="url(#score-gradient)" stroke-dasharray="440" stroke-dashoffset="88" stroke-linecap="round" stroke-width="12"></circle>
+<circle id="score-ring" cx="80" cy="80" fill="transparent" r="70" stroke="url(#score-gradient)" stroke-dasharray="440" stroke-dashoffset="440" stroke-linecap="round" stroke-width="12"></circle>
 <defs>
 <lineargradient id="score-gradient" x1="0%" x2="100%" y1="0%" y2="100%">
 <stop offset="0%" style="stop-color:#6c5ce7;stop-opacity:1"></stop>
@@ -237,28 +237,28 @@ Run Evaluation
 <div class="flex flex-col gap-2">
 <div class="flex justify-between items-end text-[10px] font-mono">
 <span class="text-on-surface-variant">R_prog (Progressive)</span>
-<span class="text-tertiary font-bold">+0.3</span>
+<span id="label-r-prog" class="text-tertiary font-bold">+0.0</span>
 </div>
 <div class="h-3 w-full bg-surface-container-highest rounded-sm overflow-hidden flex">
-<div class="h-full bg-tertiary w-[30%] shadow-[0_0_15px_rgba(46,220,215,0.4)]"></div>
+<div id="bar-r-prog" class="h-full bg-tertiary w-0 shadow-[0_0_15px_rgba(46,220,215,0.4)] transition-all duration-500"></div>
 </div>
 </div>
 <div class="flex flex-col gap-2">
 <div class="flex justify-between items-end text-[10px] font-mono">
 <span class="text-on-surface-variant">R_pen (Penalty)</span>
-<span class="text-error font-bold">-0.0</span>
+<span id="label-r-pen" class="text-error font-bold">-0.0</span>
 </div>
 <div class="h-3 w-full bg-surface-container-highest rounded-sm overflow-hidden">
-<div class="h-full bg-error w-0"></div>
+<div id="bar-r-pen" class="h-full bg-error w-0 transition-all duration-500"></div>
 </div>
 </div>
 <div class="flex flex-col gap-2">
 <div class="flex justify-between items-end text-[10px] font-mono">
 <span class="text-on-surface-variant">R_term (Terminal)</span>
-<span class="text-primary font-bold">+1.0</span>
+<span id="label-r-term" class="text-primary font-bold">+0.0</span>
 </div>
 <div class="h-3 w-full bg-surface-container-highest rounded-sm overflow-hidden">
-<div class="h-full bg-primary w-full shadow-[0_0_15px_rgba(198,191,255,0.4)]"></div>
+<div id="bar-r-term" class="h-full bg-primary w-0 shadow-[0_0_15px_rgba(198,191,255,0.4)] transition-all duration-500"></div>
 </div>
 </div>
 <div class="pt-4 border-t border-outline-variant/15 flex justify-between items-center">
@@ -423,9 +423,40 @@ Run Evaluation
 
             // Update scores
             rewardAccum.innerHTML = (data.reward_accumulated > 0 ? "+" : "") + data.reward_accumulated.toFixed(1);
+            
+            // Update individual reward breakdown bars (approximated from logs)
+            const actions = data.actions_taken || [];
+            let prog = 0, pen = 0, term = 0;
+            
+            // Simple accumulation for UI feedback
+            actions.forEach(a => {
+                if (a.action_type === 'search_db') prog += 0.1;
+                if (a.action_type === 'final_response') term = 1.0;
+            });
+            if (data.info && data.info.sop_violations) pen = data.info.sop_violations * 0.5;
+
+            document.getElementById('label-r-prog').innerText = "+" + prog.toFixed(1);
+            document.getElementById('bar-r-prog').style.width = Math.min(100, (prog/1.0)*100) + "%";
+            
+            document.getElementById('label-r-pen').innerText = "-" + pen.toFixed(1);
+            document.getElementById('bar-r-pen').style.width = Math.min(100, (pen/2.0)*100) + "%";
+            
+            document.getElementById('label-r-term').innerText = "+" + term.toFixed(1);
+            document.getElementById('bar-r-term').style.width = (term * 100) + "%";
+
             if (data.done) {
                 // Approximate terminal score rendering
-                agentScore.innerHTML = (data.reward_accumulated).toFixed(2);
+                const finalScore = data.reward_accumulated;
+                agentScore.innerHTML = finalScore.toFixed(2);
+                
+                // Update radial ring (dasharray: 440)
+                // Normalize 4.02 score to a % for the ring
+                const progress = Math.min(1, finalScore / 4.0); 
+                const offset = 440 - (progress * 440);
+                document.getElementById('score-ring').style.strokeDashoffset = offset;
+            } else {
+                document.getElementById('score-ring').style.strokeDashoffset = 440;
+                agentScore.innerHTML = "0.00";
             }
         } catch (err) {
             console.error("Error fetching state:", err);
