@@ -6,7 +6,7 @@ colorTo: purple
 sdk: docker
 pinned: true
 license: mit
-short_description: "5-task adversarial customer support simulation environment for LLM agents (Meta PyTorch Hackathon)"
+short_description: "Adversarial LLM support agent eval environment"
 ---
 
 # 🧠 OmniSupport-Sim
