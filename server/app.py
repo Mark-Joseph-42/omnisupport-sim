@@ -65,7 +65,7 @@ async def health():
     return {"status": "healthy", "env_id": "omnisupport-sim-v1"}
 
 # ── Serve frontend if available ──
-frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "omnisupport_sim", "frontend")
 if os.path.exists(frontend_path):
     @app.get("/web")
     async def web_interface():
