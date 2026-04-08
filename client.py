@@ -1,6 +1,18 @@
+import sys
+import os
 import httpx
 from openenv.core.env_client import StepResult
-from omnisupport_sim.models import OmniSupportAction, OmniSupportObservation
+
+try:
+    from omnisupport_sim.models import OmniSupportAction, OmniSupportObservation
+except ImportError:
+    # If running from within the package or if the package is not found, try local import
+    try:
+        from models import OmniSupportAction, OmniSupportObservation
+    except ImportError:
+        # Final fallback: Add current and parent dir to path
+        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+        from models import OmniSupportAction, OmniSupportObservation
 
 class OmniSupportEnv:
     """Async environment client for OmniSupport-Sim, using HTTP."""

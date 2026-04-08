@@ -9,6 +9,18 @@ import textwrap
 from typing import List, Optional
 
 from openai import OpenAI
+import sys
+import os
+
+# ── Dynamic Path Injection (fix ModuleNotFoundError) ──
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+# Also add parent dir if we are inside omnisupport_sim
+parent_dir = os.path.dirname(current_dir)
+if os.path.basename(current_dir) == "omnisupport_sim":
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
 
 from client import OmniSupportEnv
 
