@@ -115,7 +115,7 @@ def grade_task_3(state: dict) -> float:
     # ── Check tool calls ──
     carrier_called_correctly = False
     tracking_found = False
-    policy_verified = any("return" in call.lower() or "verification" in call.lower() for call in policy_calls)
+    policy_verified = any("return" in call.lower() or "verification" in call.lower() or "refund" in call.lower() for call in policy_calls)
 
     for action in actions:
         action_type = action.get("action_type", "")

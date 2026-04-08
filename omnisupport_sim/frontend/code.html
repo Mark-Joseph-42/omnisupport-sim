@@ -445,18 +445,16 @@ Run Evaluation
             document.getElementById('bar-r-term').style.width = (term * 100) + "%";
 
             if (data.done) {
-                // Approximate terminal score rendering
-                const finalScore = data.reward_accumulated;
-                agentScore.innerHTML = finalScore.toFixed(2);
+                // Official PRD Grade (0.0 - 1.0)
+                const grade = data.grader_score || 0.0;
+                agentScore.innerHTML = (grade * 100).toFixed(0) + "%";
                 
                 // Update radial ring (dasharray: 440)
-                // Normalize 4.02 score to a % for the ring
-                const progress = Math.min(1, finalScore / 4.0); 
-                const offset = 440 - (progress * 440);
+                const offset = 440 - (grade * 440);
                 document.getElementById('score-ring').style.strokeDashoffset = offset;
             } else {
                 document.getElementById('score-ring').style.strokeDashoffset = 440;
-                agentScore.innerHTML = "0.00";
+                agentScore.innerHTML = "0%";
             }
         } catch (err) {
             console.error("Error fetching state:", err);

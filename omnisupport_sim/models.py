@@ -15,6 +15,7 @@ class OmniSupportObservation(BaseModel):
     customer_history: dict = Field(description="Customer profile and order history as JSON")
     internal_notes: str = Field(default="", description="Internal notes from previous tool calls")
     last_tool_output: Optional[dict] = Field(default=None, description="Output from the last tool call")
+    grader_score: float = 0.0
 
 
 # ── Action Models (Union of 4 tool types) ──────────────────────────────────
@@ -60,4 +61,5 @@ class OmniSupportState(BaseModel):
     actions_taken: list[dict] = Field(default_factory=list)
     tools_called: list[str] = Field(default_factory=list, description="Ordered list of tool types called")
     reward_accumulated: float = 0.0
+    grader_score: float = 0.0
     done: bool = False

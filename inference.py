@@ -61,7 +61,10 @@ SYSTEM_PROMPT = textwrap.dedent(
     STRICT SOP:
     1. Search Order ID.
     2. If a tracking_id is found, you MUST search that tracking_id to check Carrier status.
-    3. Check policies: use 'refund_eligibility' for new refunds, or 'return_verification' if the customer claims they already returned the item.
+    STRICT SOP:
+    1. Search Order ID.
+    2. If a tracking_id is found, you MUST search that tracking_id to check Carrier status.
+    3. MANDATORY: You MUST use 'verify_policy' for every ticket before taking any action. For Task 3 (Conflict), use 'return_verification'.
     4. Provide a CONCISE and professional FinalResponse when done.
     
     Example: {"action_type": "search_db", "query": "4829"}
@@ -191,7 +194,7 @@ async def check_connectivity():
     try:
         from client import OmniSupportEnv
         test_env = OmniSupportEnv(base_url=ENV_URL)
-        await test_env.reset()
+        await test_env.reset(task_id=TASK_NAME)
         print(f"  [OK] Environment server at {ENV_URL} is reachable.", file=sys.stderr)
         await test_env.close()
     except Exception as e:
@@ -230,7 +233,7 @@ async def main() -> None:
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        result = await env.reset()
+        result = await env.reset(task_id=TASK_NAME)
         
         last_obs = result.observation.model_dump()
         last_error = None
@@ -276,8 +279,8 @@ async def main() -> None:
             log_step(step=step, action=clean_action_str, reward=reward, done=done, error=error)
 
             if done:
-                # In your previous logic, you used the total_reward / score logic, simplified here:
-                score = sum(rewards)
+                # Use the official grader score from the server state
+                score = obs.get("grader_score", 0.0)
                 success = score >= SUCCESS_SCORE_THRESHOLD
                 break
 
@@ -287,9 +290,9 @@ async def main() -> None:
         except Exception as e:
             print(f"[DEBUG] env.close() error: {e}", flush=True)
             
-        # final fallback score set if broke out early
-        if score == 0.0 and len(rewards) > 0:
-            score = sum(rewards)
+        # final score is the grader score from the last observation
+        if score == 0.0 and last_obs:
+            score = last_obs.get("grader_score", 0.0)
             success = score >= SUCCESS_SCORE_THRESHOLD
             
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)

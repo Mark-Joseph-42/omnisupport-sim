@@ -193,6 +193,7 @@ class OmniSupportEnvironment:
         if done:
             self._state.db_snapshot = self.db.get_snapshot()
             grader_score = grade(self._state.model_dump(), self._state.current_task_id)
+            self._state.grader_score = grader_score
             terminal_reward = self.reward_calc.compute_terminal_reward(grader_score)
             step_reward += terminal_reward
 
@@ -207,6 +208,7 @@ class OmniSupportEnvironment:
             customer_history=customer_history,
             internal_notes=internal_notes,
             last_tool_output=tool_output if isinstance(tool_output, dict) else {"results": tool_output},
+            grader_score=self._state.grader_score if done else 0.0,
         )
 
         return {
@@ -216,6 +218,7 @@ class OmniSupportEnvironment:
             "info": {
                 "step_count": self._state.step_count,
                 "total_reward": self._state.reward_accumulated,
+                "grader_score": self._state.grader_score,
                 "sop_violations": self.reward_calc.sop_violations,
             },
         }
