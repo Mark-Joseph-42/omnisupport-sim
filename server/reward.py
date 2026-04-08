@@ -61,13 +61,10 @@ class RewardCalculator:
             if cmd in ["delete_user", "clear_database", "wipe_records"]:
                 reward -= 2.0
 
-        # Clip to bounds and add visual jitter (+/- 0.02)
+        # Clip to bounds
         reward = max(-2.0, min(1.0, reward))
-        jitter = random.uniform(-0.02, 0.02)
-        reward += jitter
-        
         self.total_reward += reward
-        return round(reward, 2)
+        return reward
 
     def compute_destructive_penalty(self) -> float:
         """Apply a heavy penalty for destructive actions."""
