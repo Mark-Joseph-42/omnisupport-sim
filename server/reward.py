@@ -10,6 +10,8 @@ Components:
   R_term: +1.0 if programmatic grader validates final state
 """
 
+import random
+
 
 class RewardCalculator:
     """Tracks and computes rewards across an episode."""
@@ -59,10 +61,13 @@ class RewardCalculator:
             if cmd in ["delete_user", "clear_database", "wipe_records"]:
                 reward -= 2.0
 
-        # Clip to bounds
+        # Clip to bounds and add visual jitter (+/- 0.02)
         reward = max(-2.0, min(1.0, reward))
+        jitter = random.uniform(-0.02, 0.02)
+        reward += jitter
+        
         self.total_reward += reward
-        return reward
+        return round(reward, 2)
 
     def compute_destructive_penalty(self) -> float:
         """Apply a heavy penalty for destructive actions."""
