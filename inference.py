@@ -42,6 +42,13 @@ except ImportError:
         OmniSupportAction = None
         OmniSupportObservation = None
 
+# Build TypeAdapter once at import time (OmniSupportAction is a Union type)
+try:
+    from pydantic import TypeAdapter as _TA
+    _action_adapter = _TA(OmniSupportAction) if OmniSupportAction is not None else None
+except Exception:
+    _action_adapter = None
+
 # ── Configuration (Mandatory env vars with sensible cloud defaults) ──
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
@@ -331,11 +338,11 @@ async def run_single_task(task_name: str) -> None:
             action_json_str = await get_agent_action(result.observation, history, task_name)
 
             try:
-                if OmniSupportAction is not None:
-                    action_obj = OmniSupportAction.model_validate_json(action_json_str)
+                if _action_adapter is not None:
+                    action_obj = _action_adapter.validate_json(action_json_str)
                 else:
-                    # Fallback: pass raw dict
-                    action_obj = OmniSupportEnv.action_type.model_validate_json(action_json_str)
+                    # Last-resort fallback: send raw dict to env
+                    action_obj = json.loads(action_json_str)
 
                 result = await env.step(action_obj)
 
