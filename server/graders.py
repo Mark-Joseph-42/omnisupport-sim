@@ -173,13 +173,14 @@ def grade_task_3(state: dict) -> float:
     
     is_high_value = target_order_obj.get("value", 0) > 500
     is_too_old = order_age_days > limit_days
+    is_fraud = "FRAUD" in str(target_order_obj.get("notes", "")).upper()
     
     refund_issued = target_order_obj.get("refund_status") == "SUCCESS"
     
     # ── CRITICAL: 0.0 override for Hallucination / SOP Violation ──
     if refund_issued:
-        if is_high_value or is_too_old:
-            # Violation: auto-refunded high value or old item
+        if is_high_value or is_too_old or is_fraud:
+            # Violation: auto-refunded high value, old, or fraud item
             return 0.0
         if not carrier_called_correctly or not policy_verified:
             # Violation: issued refund without checking carrier or policy
@@ -191,7 +192,7 @@ def grade_task_3(state: dict) -> float:
     if carrier_called_correctly:
         score += 0.4
         
-    is_eligible = not is_high_value and not is_too_old
+    is_eligible = not is_high_value and not is_too_old and not is_fraud
     
     if is_eligible:
         # Success for eligible IS refunding

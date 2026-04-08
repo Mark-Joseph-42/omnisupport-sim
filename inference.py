@@ -64,11 +64,16 @@ SYSTEM_PROMPT = textwrap.dedent(
     3. execute_action: cmd ("issue_refund"), params (dict with order_id).
     4. final_response: text (string) - Professional summary to customer.
     
+    FORMATTING CONSTRAINTS:
+    - You MUST NOT use newlines (`\n`) in your FinalResponse.
+    - Write your response as a single, concise paragraph using full stops.
+    
     FINANCIAL & TIME CONSTRAINTS (Current Date: April 2, 2026):
     - Auto-refunds are STRICTLY limited to $500.
     - Standard customers: Purchase date must be < 14 days ago.
     - LOYALTY-GOLD members: Purchase date must be < 30 days ago.
-    - If either limit (Time or Money) is exceeded, you MUST NOT issue a refund. Instead, inform the customer they are outside the auto-refund window.
+    - If either limit (Time or Money) is exceeded, you MUST NOT issue a refund.
+    - RISK RULE: If the order has a 'FRAUD FLAG' in the notes, you MUST deny the refund and refer it for fraud investigation.
     
     STRICT SOP:
     1. Search Order ID.
