@@ -43,7 +43,7 @@ BENCHMARK = os.getenv("OMNISUPPORT_BENCHMARK", "omnisupport_sim")
 TASK_NAME = os.getenv("OMNISUPPORT_TASK", "order_check")
 
 TIMEOUT_MINUTES = 19  # Must complete under 20 min
-MAX_STEPS = 10
+MAX_STEPS = 15
 SUCCESS_SCORE_THRESHOLD = 0.5
 
 client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
@@ -58,17 +58,16 @@ SYSTEM_PROMPT = textwrap.dedent(
     3. Ensure you have ALL required information (order_id, eligibility, delivery status) before calling ExecuteAction.
     
     Available tools:
-    1. SearchDB(query): Search the order/customer database. IMPORTANT: 'query' must be a STRING (e.g. "5510" or "cust_882"). DO NOT use dictionaries.
+    1. SearchDB(query): Search the order/customer database. IMPORTANT: 'query' must be a STRING. If you find a 'tracking_id' (e.g. TRK-...), you MUST perform a separate search for that ID before acting.
     2. VerifyPolicy(topic): Check company policy rules. Topics: refund_eligibility, escalation_protocol, return_verification, shipping_change.
     3. ExecuteAction(cmd, params): Execute an action. Commands: issue_refund. 'params' is a dictionary containing 'order_id'.
     4. FinalResponse(text): Close the ticket with a response to the customer.
     
     CRITICAL RULES:
-    - Never hallucinate tracking IDs.
-    - Respond with EXACTLY ONE tool call per turn as JSON.
-    - JSON keys must be exactly: "action_type" and one of ["query", "topic", "cmd", "text"].
-    - NEVER return an empty response. If you are finished, you MUST use FinalResponse.
-    - If you are confused, use SearchDB or VerifyPolicy to look for more information.
+    1. VERIFY THEN ACTION: You must search the Order AND the Tracking ID before issuing a refund.
+    2. POLICY FIRST: Always check 'refund_eligibility' policy before calling ExecuteAction.
+    3. JSON ONLY: Respond with EXACTLY ONE tool call per turn as JSON.
+    4. KEYS: JSON keys must be exactly: "action_type" and one of ["query", "topic", "cmd", "text"].
     
     Example: {"action_type": "search_db", "query": "TRK-9928-XZ"}
     """
@@ -99,11 +98,22 @@ async def get_agent_action(obs: OmniSupportObservation, history: List[dict]) -> 
     """Query the LLM and extract a structured action."""
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
     
-    # history contains pairs of {"action": ..., "observation": ...}
-    for entry in history:
-        messages.append({"role": "assistant", "content": entry.get("action", "")})
-        messages.append({"role": "user", "content": f"Observation: {entry.get('observation', '')}"})
+    # Context Slimming: Show condensed history
+    for i, entry in enumerate(history):
+        action_data = json.loads(entry.get("action", "{}"))
+        observation_val = entry.get("observation", "")
+        
+        # Summarize observation to save tokens
+        if len(observation_val) > 200:
+            observation_val = observation_val[:200] + "..."
+            
+        messages.append({"role": "assistant", "content": json.dumps(action_data)})
+        messages.append({"role": "user", "content": f"Tool Result: {observation_val}"})
     
+    # Add a progress nudge if history is long
+    if len(history) > 0:
+        messages.append({"role": "user", "content": f"Progress: You have completed {len(history)} steps. Please move to the next SOP step or provide a final_response."})
+
     # Add current observation
     messages.append({"role": "user", "content": f"Current Observation: {obs.model_dump_json()}"})
 
@@ -117,20 +127,19 @@ async def get_agent_action(obs: OmniSupportObservation, history: List[dict]) -> 
                 model=MODEL_NAME,
                 messages=messages,
                 temperature=0.1,
-                max_tokens=500,
+                max_tokens=600, # Increased tokens
                 stream=False,
             )
             content = (response.choices[0].message.content or "").strip()
             
             if not content:
                 # If model is being shy, nudge it
-                messages.append({"role": "user", "content": "Please provide your next action in JSON format. Do not leave the response empty."})
+                messages.append({"role": "user", "content": "CONTINUE. Provide your next action in JSON format based on the tools above."})
                 continue
 
             # ── Extraction Logic ──
             cleaned_content = content
             if "```" in cleaned_content:
-                # Multi-block check: take the first JSON-like block
                 blocks = cleaned_content.split("```")
                 for block in blocks:
                     if "{" in block and "}" in block:
@@ -144,35 +153,33 @@ async def get_agent_action(obs: OmniSupportObservation, history: List[dict]) -> 
             try:
                 action = json.loads(cleaned_content)
                 
-                # ── Normalization (Harding against model quirks) ──
+                # ── Normalization ──
                 if isinstance(action, dict):
-                    # 1. Normalize case (FinalResponse -> final_response)
                     if "action_type" in action:
                         action["action_type"] = action["action_type"].lower()
-                    
-                    # 2. Extract string from query if model incorrectly sent a dict
                     if action.get("action_type") == "search_db" and isinstance(action.get("query"), dict):
                         q = action["query"]
-                        # If model sent {"order_id": "5510"} or similar
                         action["query"] = str(next(iter(q.values()))) if q else ""
                 
                 return json.dumps(action)
             except json.JSONDecodeError as je:
                 if attempt < max_retries - 1:
-                    messages.append({"role": "user", "content": f"Your last response was not valid JSON. Error: {str(je)}. Please provide JSON only."})
+                    messages.append({"role": "user", "content": "Your response was empty or malformed. Reply with a valid JSON tool call."})
                     continue
-                # LOG RAW OUTPUT ON FAILURE (to stderr for visibility in console)
-                print(f"\n[DEBUG] LLM returned non-JSON content. Raw output follows:\n{'-'*40}\n{content}\n{'-'*40}", file=sys.stderr)
+                # DIAGNOSTIC DUMP
+                print(f"\n[DIAGNOSTIC DUMP] Complete message history for failed turn:\n{json.dumps(messages, indent=2)}", file=sys.stderr)
+                print(f"\n[DEBUG] Raw LLM Output:\n{content}", file=sys.stderr)
                 raise je
 
         except Exception as e:
             if attempt < max_retries - 1:
                 last_error = e
                 continue
-            # Fallback closure if JSON parse or LLM fails
             default_action = {"action_type": "final_response", "text": f"Unable to process at this time. Error: {str(e or last_error)}"}
             return json.dumps(default_action)
     
+    # FINAL DIAGNOSTIC DUMP before giving up
+    print(f"\n[DIAGNOSTIC DUMP] Failure after {max_retries} attempts. Messages:\n{json.dumps(messages, indent=2)}", file=sys.stderr)
     return json.dumps({"action_type": "final_response", "text": "Model failed to respond after multiple attempts."})
 
 
