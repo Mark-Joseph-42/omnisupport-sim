@@ -18,7 +18,7 @@ RUN uv pip install --system --no-cache-dir -r requirements.txt
 COPY . .
 
 # Ensure paths match expected structure
-ENV PYTHONPATH="/repo:/repo/omnisupport_sim"
+ENV PYTHONPATH="/repo"
 ENV PYTHONUNBUFFERED=1
 
 EXPOSE 8000
