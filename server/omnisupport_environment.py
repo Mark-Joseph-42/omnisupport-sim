@@ -110,6 +110,20 @@ class OmniSupportEnvironment:
         if self._state is None:
             raise RuntimeError("Must call reset() before step()")
         if self._state.done:
+            # Idempotency: If final_response is called on a done episode, just return the final state again
+            if action.get("action_type") == "final_response":
+                observation = OmniSupportObservation(
+                    ticket_id=self._current_scenario["ticket_id"],
+                    customer_history=self.db.get_customer_history(self._current_scenario["customer_id"]),
+                    internal_notes="Ticket already resolved.",
+                    last_tool_output={"response_sent": True, "already_done": True},
+                )
+                return {
+                    "observation": observation.model_dump(),
+                    "reward": 0.0,
+                    "done": True,
+                    "info": {"status": "already_done"},
+                }
             raise RuntimeError("Episode is done. Call reset() to start a new one.")
 
         action_type = action.get("action_type")
