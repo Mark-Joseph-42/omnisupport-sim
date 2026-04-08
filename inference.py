@@ -58,17 +58,17 @@ SYSTEM_PROMPT = textwrap.dedent(
     3. Ensure you have ALL required information (order_id, eligibility, delivery status) before calling ExecuteAction.
     
     Available tools:
-    1. SearchDB(query): Search the order/customer database. Use this to find order details and CARRIER tracking status.
+    1. SearchDB(query): Search the order/customer database. IMPORTANT: 'query' must be a STRING (e.g. "5510" or "cust_882"). DO NOT use dictionaries.
     2. VerifyPolicy(topic): Check company policy rules. Topics: refund_eligibility, escalation_protocol, return_verification, shipping_change.
-    3. ExecuteAction(cmd, params): Execute an action. Commands: issue_refund, change_shipping. Params MUST include order_id.
+    3. ExecuteAction(cmd, params): Execute an action. Commands: issue_refund. 'params' is a dictionary containing 'order_id'.
     4. FinalResponse(text): Close the ticket with a response to the customer.
     
     CRITICAL RULES:
-    - Never hallucinate tracking IDs or order statuses.
-    - If a refund condition is not met (e.g., item > 14 days old), use FinalResponse to explain why to the customer.
+    - Never hallucinate tracking IDs.
     - Respond with EXACTLY ONE tool call per turn as JSON.
+    - JSON keys must be exactly: "action_type" and one of ["query", "topic", "cmd", "text"].
     
-    Example: {"action_type": "verify_policy", "topic": "refund_eligibility"}
+    Example: {"action_type": "search_db", "query": "TRK-9928-XZ"}
     """
 ).strip()
 
@@ -129,6 +129,19 @@ async def get_agent_action(obs: OmniSupportObservation, history: List[dict]) -> 
 
         try:
             action = json.loads(cleaned_content)
+            
+            # ── Normalization (Harding against model quirks) ──
+            if isinstance(action, dict):
+                # 1. Normalize case (FinalResponse -> final_response)
+                if "action_type" in action:
+                    action["action_type"] = action["action_type"].lower()
+                
+                # 2. Extract string from query if model incorrectly sent a dict
+                if action.get("action_type") == "search_db" and isinstance(action.get("query"), dict):
+                    q = action["query"]
+                    # If model sent {"order_id": "5510"} or similar
+                    action["query"] = str(next(iter(q.values()))) if q else ""
+            
             return json.dumps(action)
         except json.JSONDecodeError as je:
             # LOG RAW OUTPUT ON FAILURE (to stderr for visibility in console)
@@ -164,6 +177,12 @@ async def check_connectivity():
 
 
 async def main() -> None:
+    global ENV_URL
+    # Allow command line argument for ENV_URL
+    if len(sys.argv) > 1 and sys.argv[1].startswith("http"):
+        ENV_URL = sys.argv[1]
+        print(f"Using ENV_URL from argument: {ENV_URL}", file=sys.stderr)
+
     # Use From Docker method if explicitly requested, else hit local env
     if os.getenv("USE_DOCKER"):
         import openenv.core
