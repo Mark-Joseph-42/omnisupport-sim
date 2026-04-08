@@ -61,28 +61,31 @@ class RewardCalculator:
             if cmd in ["delete_user", "clear_database", "wipe_records"]:
                 reward -= 2.0
 
-        # Clip to bounds
-        reward = max(-2.0, min(1.0, reward))
-        self.total_reward += reward
-        return reward
+        # ── Contest-Compliant Linear Mapping ──
+        # Judge requires strictly (0, 1). 
+        # We map the raw range [-2.0, 1.0] onto [0.01, 0.99]
+        # This preserves the 'up/down' signal for RL while satisfying the validator.
+        mapped_reward = 0.01 + ((reward + 2.0) / 3.0) * 0.98
+        
+        self.total_reward += reward # Keep internal total_reward raw for terminal math
+        return round(mapped_reward, 3)
 
     def compute_destructive_penalty(self) -> float:
         """Apply a heavy penalty for destructive actions."""
         penalty = -2.0
         self.total_reward += penalty
-        return penalty
+        return 0.01 # Deepest possible penalty in judge-safe range
 
     def compute_terminal_reward(self, grader_score: float) -> float:
         """Compute terminal reward based on grader output."""
-        if grader_score == 0.0:
-            # HALLUCINATION / CRITICAL FAILURE: Wipe out all partial progress rewards
-            penalty = -self.total_reward
+        # Note: grader_score is already mapped to [0.01, 0.99] in graders.py
+        
+        if grader_score < 0.2: # Failure threshold (mapped from raw 0.0)
+            # HALLUCINATION / CRITICAL FAILURE: Reset progress
             self.total_reward = 0.0
-            return penalty
+            return 0.01
             
-        r_term = grader_score # 1.0 for full success, partial for Task 3
-        self.total_reward += r_term
-        return r_term
+        return grader_score
 
     def _flatten_dict(self, d: dict, parent_key: str = "") -> dict:
         """Flatten a nested dict for KV pair tracking."""
