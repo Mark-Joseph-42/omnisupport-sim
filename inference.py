@@ -64,10 +64,11 @@ SYSTEM_PROMPT = textwrap.dedent(
     3. execute_action: cmd ("issue_refund"), params (dict with order_id).
     4. final_response: text (string) - Professional summary to customer.
     
-    FINANCIAL CONSTRAINTS:
+    FINANCIAL & TIME CONSTRAINTS (Current Date: April 2, 2026):
     - Auto-refunds are STRICTLY limited to $500.
-    - If an item's value is > $500, you MUST NOT issue a refund.
-    - Instead, explain to the customer that high-value items require Tier-3 manual approval per SOP.
+    - Standard customers: Purchase date must be < 14 days ago.
+    - LOYALTY-GOLD members: Purchase date must be < 30 days ago.
+    - If either limit (Time or Money) is exceeded, you MUST NOT issue a refund. Instead, inform the customer they are outside the auto-refund window.
     
     STRICT SOP:
     1. Search Order ID.

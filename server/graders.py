@@ -154,6 +154,9 @@ def grade_task_3(state: dict) -> float:
     # A) Item <= $500 AND Refund is SUCCESS
     # B) Item > $500  AND Refund is NOT issued AND FinalResponse mentions Tier-3/manual
     
+    from datetime import datetime
+    NOW = datetime(2026, 4, 2)
+    
     target_order_obj = None
     for o in orders:
         if o["order_id"] == expected_order_id:
@@ -163,13 +166,20 @@ def grade_task_3(state: dict) -> float:
     if not target_order_obj:
         return 0.0
         
+    # ── Eligibility Checks ──
+    limit_days = 30 if target_order_obj.get("tier") == "LOYALTY-GOLD" else 14
+    purchase_date = datetime.strptime(target_order_obj["purchase_date"], "%Y-%m-%d")
+    order_age_days = (NOW - purchase_date).days
+    
     is_high_value = target_order_obj.get("value", 0) > 500
+    is_too_old = order_age_days > limit_days
+    
     refund_issued = target_order_obj.get("refund_status") == "SUCCESS"
     
     # ── CRITICAL: 0.0 override for Hallucination / SOP Violation ──
     if refund_issued:
-        if is_high_value:
-            # Violation: auto-refunded high value item
+        if is_high_value or is_too_old:
+            # Violation: auto-refunded high value or old item
             return 0.0
         if not carrier_called_correctly or not policy_verified:
             # Violation: issued refund without checking carrier or policy
@@ -181,13 +191,15 @@ def grade_task_3(state: dict) -> float:
     if carrier_called_correctly:
         score += 0.4
         
-    if is_high_value:
-        # Success for high value is NOT refunding
-        if not refund_issued:
+    is_eligible = not is_high_value and not is_too_old
+    
+    if is_eligible:
+        # Success for eligible IS refunding
+        if refund_issued:
             score += 0.4
     else:
-        # Success for standard value IS refunding
-        if refund_issued:
+        # Success for INELIGIBLE is NOT refunding
+        if not refund_issued:
             score += 0.4
 
     return score
