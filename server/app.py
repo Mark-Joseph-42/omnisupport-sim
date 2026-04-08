@@ -1,10 +1,6 @@
-"""
-FastAPI server for OmniSupport-Sim.
-Exposes /reset, /step, /state endpoints per OpenEnv spec.
-"""
 from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from typing import Optional
 import os
@@ -15,6 +11,15 @@ app = FastAPI(
     title="OmniSupport-Sim",
     description="A High-Fidelity OpenEnv for Multi-Tool Support Agents",
     version="1.0.0",
+)
+
+# ── CORS Middleware for Hugging Face Mirrors ──
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 env = OmniSupportEnvironment()
@@ -63,6 +68,11 @@ async def get_state():
 @app.get("/health")
 async def health():
     return {"status": "healthy", "env_id": "omnisupport-sim-v1"}
+
+@app.get("/")
+async def root():
+    """Redirect root to the web interface."""
+    return RedirectResponse(url="/web")
 
 # ── Serve frontend if available ──
 frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "omnisupport_sim", "frontend")
