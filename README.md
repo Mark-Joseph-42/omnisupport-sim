@@ -39,7 +39,7 @@ The environment is designed to **expose the difference between a capable agent a
 └─────────────────────────┬───────────────────────────────────┘
                           │ HTTP (OpenEnv spec)
 ┌─────────────────────────▼───────────────────────────────────┐
-│                    FastAPI Server (:8000)                    │
+│                    FastAPI Server (:7860)                    │
 │  POST /reset  →  ScenarioGenerator.generate(task, seed)     │
 │  POST /step   →  OmniSupportEnvironment.step(action)        │
 │  GET  /state  →  Full state snapshot for grading            │
@@ -307,12 +307,12 @@ python inference.py https://markjoseph2003-metahacky.hf.space
 
 ```bash
 # Start the environment server
-uvicorn server.app:app --host 0.0.0.0 --port 8000
+uvicorn server.app:app --host 0.0.0.0 --port 7860
 
 # Run inference against local server
 API_BASE_URL=http://localhost:1234/v1 \
 MODEL_NAME=your-local-model \
-python inference.py http://localhost:8000
+python inference.py http://localhost:7860
 ```
 
 ### Run Tests

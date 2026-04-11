@@ -10,7 +10,7 @@ task_ids:
   - fraud_prevention
   - escalation_required
 runtime:
-  port: 8000
+  port: 7860
   resources:
     cpu: 2
     memory: 8GB
