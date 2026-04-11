@@ -75,10 +75,24 @@ async def get_state():
 async def health():
     return {"status": "healthy", "env_id": "omnisupport-sim-v1"}
 
+@app.get("/web")
+async def web_interface():
+    """Serve the high-fidelity Mission Control dashboard."""
+    # Resolve path relative to this file's directory
+    # Structure: server/app.py -> ../omnisupport_sim/frontend/code.html
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    frontend_path = os.path.join(base_dir, "omnisupport_sim", "frontend", "code.html")
+    
+    if not os.path.exists(frontend_path):
+        # Fallback for alternative structures
+        frontend_path = "/repo/omnisupport_sim/frontend/code.html"
+        
+    return FileResponse(frontend_path)
+
 @app.get("/")
 async def root():
-    """Redirect root to interactive API docs."""
-    return RedirectResponse(url="/docs")
+    """Redirect root to the Mission Control UI."""
+    return RedirectResponse(url="/web")
 
 def main():
     import uvicorn
